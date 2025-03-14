@@ -7,11 +7,12 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: books_db
     volumes:
-      - pgdata-noshards:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      - pgbackups:/backups
     ports:
       - "5432:5432"
     networks:
-      - pg-network-noshards
+      - pg-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -33,14 +34,15 @@ services:
     volumes:
       - ./app:/app
     networks:
-      - pg-network-noshards
+      - pg-network
     depends_on:
       postgresql-b:
         condition: service_healthy
 
 networks:
-  pg-network-noshards:
+  pg-network:
     driver: bridge
 
 volumes:
-  pgdata-noshards:
+  pgdata:
+  pgbackups:
