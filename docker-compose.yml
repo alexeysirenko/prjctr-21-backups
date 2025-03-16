@@ -1,14 +1,18 @@
 services:
-  postgresql-b:
-    image: postgres:15-alpine
-    container_name: postgresql-b
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    hostname: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: books_db
+      POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - pgbackups:/backups
+      - pgdata4:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/pg_hba.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/pg_hba.conf
     ports:
       - "5432:5432"
     networks:
@@ -20,13 +24,34 @@ services:
       timeout: 5s
       retries: 5
 
+  barman:
+    image: ubcctlt/barman
+    container_name: barman
+    hostname: barman
+    environment:
+      BARMAN_LOG_LEVEL: INFO
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    volumes:
+      - ./backups:/backups
+      - ./barman/barman.conf:/etc/barman.conf:ro
+      - barman_data3:/var/lib/barman
+    networks:
+      - pg-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   app:
     build:
       context: ./app
       dockerfile: Dockerfile
     container_name: app
     environment:
-      DB_HOST_1: postgresql-b
+      DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: books_db
       DB_USER: postgres
@@ -36,7 +61,7 @@ services:
     networks:
       - pg-network
     depends_on:
-      postgresql-b:
+      postgres:
         condition: service_healthy
 
 networks:
@@ -44,5 +69,5 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:
-  pgbackups:
+  pgdata4:
+  barman_data3:
